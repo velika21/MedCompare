@@ -2,7 +2,7 @@ import HospitalCard from '../components/HospitalCard'
 
 async function getHospitals() {
   const res = await fetch(
-    'http://localhost:5000/api/hospitals',
+    `${process.env.NEXT_PUBLIC_API_URL}/api/hospitals`,
     { cache: 'no-store' }
   )
   if (!res.ok) throw new Error('Failed to fetch hospitals')

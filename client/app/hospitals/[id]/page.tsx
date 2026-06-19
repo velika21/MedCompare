@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import Link from 'next/link'
 
@@ -10,18 +9,36 @@ export default function HospitalDetailPage() {
   const id = params?.id as string
   const [hospital, setHospital] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const { user } = useAuthStore()
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
+  const [reviewMsg, setReviewMsg] = useState('')
 
   useEffect(() => {
     if (!id) return
-    fetch(`http://localhost:5000/api/hospitals/${id}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/hospitals/${id}`)
       .then(res => res.json())
-      .then(data => {
-        console.log('Hospital data:', data)  // check this in browser console
-        setHospital(data)
-      })
+      .then(data => setHospital(data))
       .catch(err => console.error(err))
       .finally(() => setLoading(false))
   }, [id])
+
+  const submitReview = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/hospitals/${id}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth-storage')
+            ? JSON.parse(localStorage.getItem('auth-storage')!).state.token
+            : ''}`
+        },
+        body: JSON.stringify(reviewForm)
+      })
+      setReviewMsg('Review submitted! Thank you.')
+    } catch {
+      setReviewMsg('Failed to submit review.')
+    }
+  }
 
   if (loading) return (
     <div className="max-w-4xl mx-auto px-4 py-8 text-gray-400">Loading...</div>
@@ -30,28 +47,6 @@ export default function HospitalDetailPage() {
   if (!hospital || hospital.message === 'Not found') return (
     <div className="max-w-4xl mx-auto px-4 py-8 text-red-500">Hospital not found</div>
   )
-const { user } = useAuthStore()
-const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
-const [reviewMsg, setReviewMsg] = useState('')
-
-const submitReview = async () => {
-  try {
-    await fetch(`http://localhost:5000/api/hospitals/${id}/reviews`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth-storage')
-          ? JSON.parse(localStorage.getItem('auth-storage')!).state.token
-          : ''}`
-      },
-      body: JSON.stringify(reviewForm)
-    })
-    setReviewMsg('Review submitted! Thank you.')
-  } catch {
-    setReviewMsg('Failed to submit review.')
-  }
-}
-
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -111,32 +106,33 @@ const submitReview = async () => {
           <div className="text-gray-400 text-sm">No tests listed</div>
         )}
       </div>
+
       {user && (
-  <div className="mt-8 bg-white border rounded-xl p-5">
-    <h2 className="text-lg font-semibold mb-4">Leave a Review</h2>
-    <div className="mb-3">
-      <label className="text-sm text-gray-600 mb-1 block">Rating</label>
-      <select value={reviewForm.rating}
-        onChange={e => setReviewForm({...reviewForm, rating: +e.target.value})}
-        className="border rounded-lg px-3 py-2 text-sm">
-        {[5,4,3,2,1].map(n => (
-          <option key={n} value={n}>{'⭐'.repeat(n)} ({n}){' '}</option>
-        ))}
-      </select>
-    </div>
-    <textarea
-      value={reviewForm.comment}
-      onChange={e => setReviewForm({...reviewForm, comment: e.target.value})}
-      placeholder="Share your experience..."
-      className="w-full border rounded-lg px-3 py-2 text-sm mb-3 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-    <button onClick={submitReview}
-      className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700">
-      Submit Review
-    </button>
-    {reviewMsg && <p className="text-sm text-green-600 mt-2">{reviewMsg}</p>}
-  </div>
-)}
+        <div className="mt-8 bg-white border rounded-xl p-5">
+          <h2 className="text-lg font-semibold mb-4">Leave a Review</h2>
+          <div className="mb-3">
+            <label className="text-sm text-gray-600 mb-1 block">Rating</label>
+            <select value={reviewForm.rating}
+              onChange={e => setReviewForm({...reviewForm, rating: +e.target.value})}
+              className="border rounded-lg px-3 py-2 text-sm">
+              {[5,4,3,2,1].map(n => (
+                <option key={n} value={n}>{'⭐'.repeat(n)} ({n})</option>
+              ))}
+            </select>
+          </div>
+          <textarea
+            value={reviewForm.comment}
+            onChange={e => setReviewForm({...reviewForm, comment: e.target.value})}
+            placeholder="Share your experience..."
+            className="w-full border rounded-lg px-3 py-2 text-sm mb-3 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button onClick={submitReview}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700">
+            Submit Review
+          </button>
+          {reviewMsg && <p className="text-sm text-green-600 mt-2">{reviewMsg}</p>}
+        </div>
+      )}
     </div>
   )
 }
