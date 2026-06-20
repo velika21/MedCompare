@@ -7,7 +7,9 @@ dotenv.config()
 connectDB()
 
 const app = express()
-app.use(cors({ origin: 'http://localhost:3000' }))
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://med-compare-velika1821.vercel.app']
+}))
 app.use(express.json())
 
 // Routes
