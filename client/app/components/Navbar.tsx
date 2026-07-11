@@ -19,6 +19,9 @@ export default function Navbar() {
       </Link>
 
       <div className="flex items-center gap-4">
+        <Link href="/ai-recommend" className="text-sm text-gray-600 hover:text-gray-900">
+          AI Suggest
+        </Link>
         <Link href="/hospitals" className="text-sm text-gray-600 hover:text-gray-900">
           Find Hospitals
         </Link>
