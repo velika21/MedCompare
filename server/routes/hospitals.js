@@ -2,8 +2,83 @@ const express = require('express')
 const router = express.Router()
 const Hospital = require('../models/Hospital')
 const { protect, adminOnly } = require('../middleware/auth')
+const redis = require('../config/redis')
 
-// GET  public, get all hospitals anyone can search
+const CACHE_TTL = 600 // 10 minutes in seconds
+
+// GET /api/hospitals/search — with Redis cache-aside pattern
+router.get('/search', async (req, res) => {
+  try {
+    const {
+      lat, lng,
+      radius = 10,
+      maxPrice,
+      minRating,
+      testName
+    } = req.query
+
+    // Build a unique cache key from the query params
+    const cacheKey = `search:${lat}:${lng}:${radius}:${maxPrice || ''}:${minRating || ''}:${testName || ''}`
+
+    // Step 1: Check cache first
+    try {
+      const cached = await redis.get(cacheKey)
+      if (cached) {
+        console.log('Cache HIT:', cacheKey)
+        return res.json(cached)
+      }
+      console.log('Cache MISS:', cacheKey)
+    } catch (cacheErr) {
+      // If Redis fails, continue to DB — never let cache break the app
+      console.error('Redis error (continuing to DB):', cacheErr.message)
+    }
+
+    // Step 2: Build MongoDB query
+    const query = {}
+
+    if (lat && lng) {
+      query.location = {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(lng), parseFloat(lat)]
+          },
+          $maxDistance: parseFloat(radius) * 1000
+        }
+      }
+    }
+
+    if (minRating) {
+      query.rating = { $gte: parseFloat(minRating) }
+    }
+
+    if (testName) {
+      query['tests.name'] = { $regex: testName, $options: 'i' }
+    }
+
+    if (maxPrice) {
+      query['tests.price'] = { $lte: parseFloat(maxPrice) }
+    }
+
+    // Step 3: Query MongoDB
+    const hospitals = await Hospital.find(query).limit(20)
+
+    // Step 4: Store result in cache with 10-minute TTL
+    try {
+      await redis.set(cacheKey, hospitals, { ex: CACHE_TTL })
+      console.log('Cached result for:', cacheKey)
+    } catch (cacheErr) {
+      console.error('Redis set error (continuing):', cacheErr.message)
+    }
+
+    res.json(hospitals)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: err.message })
+  }
+})
+
+// GET /api/hospitals — public, all hospitals (no cache needed, used rarely)
 router.get('/', async (req, res) => {
   try {
     const hospitals = await Hospital.find({})
@@ -13,55 +88,7 @@ router.get('/', async (req, res) => {
   }
 })
 
-router.get('/search', async (req, res) => {
-  try {
-    const {
-      lat, lng,
-      radius = 10,      // km, default 10km
-      maxPrice,
-      minRating,
-      testName
-    } = req.query
-
-    // Build the query object
-    const query = {}
-
-    // Geo filter — only if lat/lng provided
-    if (lat && lng) {
-      query.location = {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)]
-          },
-          $maxDistance: parseFloat(radius) * 1000  // km → metres
-        }
-      }
-    }
-
-    // Rating filter
-    if (minRating) {
-      query.rating = { $gte: parseFloat(minRating) }
-    }
-
-    // Test name filter
-    if (testName) {
-      query['tests.name'] = { $regex: testName, $options: 'i' }
-    }
-
-    // Price filter — hospitals that have at least one test under maxPrice
-    if (maxPrice) {
-      query['tests.price'] = { $lte: parseFloat(maxPrice) }
-    }
-
-    const hospitals = await Hospital.find(query).limit(20)
-    res.json(hospitals)
-  } catch (err) {
-    res.status(500).json({ message: err.message })
-  }
-})
-
-// GET like by clicking it
+// GET /api/hospitals/:id — public, single hospital
 router.get('/:id', async (req, res) => {
   try {
     const hospital = await Hospital.findById(req.params.id)
@@ -72,7 +99,7 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// POST /api/hospitals — admin only can create one
+// POST /api/hospitals — admin only
 router.post('/', protect, adminOnly, async (req, res) => {
   try {
     const hospital = new Hospital({
@@ -90,12 +117,12 @@ router.post('/', protect, adminOnly, async (req, res) => {
   }
 })
 
+// POST /api/hospitals/:id/reviews — only after confirmed booking
 router.post('/:id/reviews', protect, async (req, res) => {
   try {
     const Review = require('../models/Review')
     const Booking = require('../models/Booking')
 
-    // Check user has a confirmed booking at this hospital
     const hasBooking = await Booking.findOne({
       user: req.user.id,
       hospital: req.params.id,
