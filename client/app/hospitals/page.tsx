@@ -19,7 +19,7 @@ export default function HospitalsPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/hospitals`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://medcompare-api.onrender.com'}/api/hospitals`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setHospitals(data)

@@ -13,7 +13,7 @@ export default function ReviewSummary({ hospitalId, reviewCount }: Props) {
   useEffect(() => {
     if (reviewCount < 2) return // don't show for hospitals with < 2 reviews
     setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/review-summary/${hospitalId}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://medcompare-api.onrender.com'}/api/ai/review-summary/${hospitalId}`)
       .then(res => res.json())
       .then(data => setSummary(data.summary))
       .catch(() => setSummary(null))

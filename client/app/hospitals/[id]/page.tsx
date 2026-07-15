@@ -16,7 +16,7 @@ export default function HospitalDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/hospitals/${id}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://medcompare-api.onrender.com'}/api/hospitals/${id}`)
       .then(res => res.json())
       .then(data => setHospital(data))
       .catch(err => console.error(err))
@@ -25,7 +25,7 @@ export default function HospitalDetailPage() {
 
   const submitReview = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/hospitals/${id}/reviews`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://medcompare-api.onrender.com'}/api/hospitals/${id}/reviews`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -39,9 +39,11 @@ export default function AIRecommendPage() {
     setError('')
     setDone(false)
 
+
+    
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/ai/recommend`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://medcompare-api.onrender.com'}/api/ai/recommend`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
