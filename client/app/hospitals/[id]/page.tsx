@@ -1,4 +1,5 @@
 'use client'
+import ReviewSummary from '../../components/ReviewSummary'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
@@ -106,6 +107,11 @@ export default function HospitalDetailPage() {
           <div className="text-gray-400 text-sm">No tests listed</div>
         )}
       </div>
+      {/* AI Review Summary */}
+        <ReviewSummary
+          hospitalId={id}
+          reviewCount={hospital.totalReviews || 0}
+        />
 
       {user && (
         <div className="mt-8 bg-white border rounded-xl p-5">
